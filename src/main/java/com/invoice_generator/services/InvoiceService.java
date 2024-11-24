@@ -38,7 +38,7 @@ public class InvoiceService {
         } catch (Exception e) {
             System.out.println("Logo not found: " + e.getMessage());
         }
-        document.add(new Paragraph("BaskitBoy")
+        document.add(new Paragraph("Company Name")
                 .setFontSize(20).setBold().setTextAlignment(TextAlignment.LEFT));
         document.add(new Paragraph("253, Spicy hub sector 39")
                 .setFontSize(10).setTextAlignment(TextAlignment.LEFT));
@@ -77,18 +77,6 @@ public class InvoiceService {
                 .setBackgroundColor(headerColor).setFontColor(DeviceRgb.WHITE).setTextAlignment(TextAlignment.CENTER));
 
         // Add Item Rows
-//        for (int i = 0; i < 5; i++) {
-//            String itemName = "Item " + (i + 1);
-//            int quantity = (i + 1) * 2;
-//            double price = 19.99;
-//            double total = quantity * price;
-//
-//            table.addCell(new Paragraph(itemName));
-//            table.addCell(new Paragraph(String.valueOf(quantity)).setTextAlignment(TextAlignment.CENTER));
-//            table.addCell(new Paragraph(CURRENCY_FORMAT.format(price)).setTextAlignment(TextAlignment.RIGHT));
-//            table.addCell(new Paragraph(CURRENCY_FORMAT.format(total)).setTextAlignment(TextAlignment.RIGHT));
-//        }
-
         double totalAmount = 0;
         for (InvoiceItemRequest item: request.getItems()) {
             double total = item.getQuantity() * item.getPrice();
@@ -111,7 +99,7 @@ public class InvoiceService {
         document.add(new Paragraph("\n")); // Add spacing
         document.add(new Paragraph("Thank you for your business!")
                 .setFontSize(12).setTextAlignment(TextAlignment.CENTER));
-        document.add(new Paragraph("Contact us: support@baskitboy.com | +123 456 7890")
+        document.add(new Paragraph("Contact us: support@company.com | +123 456 7890")
                 .setFontSize(10).setTextAlignment(TextAlignment.CENTER));
 
         // Close Document
