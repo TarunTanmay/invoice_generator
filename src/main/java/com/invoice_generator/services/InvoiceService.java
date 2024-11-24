@@ -2,66 +2,120 @@ package com.invoice_generator.services;
 
 import com.invoice_generator.dto.InvoiceItemRequest;
 import com.invoice_generator.dto.InvoiceRequest;
-import com.itextpdf.layout.element.Cell;
-import com.itextpdf.layout.element.Table;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.properties.TextAlignment;
-import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.io.image.ImageDataFactory;
+import com.itextpdf.kernel.colors.DeviceRgb;
 import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Cell;
+import com.itextpdf.layout.element.Image;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Table;
+import com.itextpdf.layout.properties.TextAlignment;
+import com.itextpdf.layout.properties.UnitValue;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.text.DecimalFormat;
 
 @Service
 public class InvoiceService {
 
-    public byte[] generateInvoicePDF(InvoiceRequest invoice) throws IOException {
-        // ByteArrayOutputStream to capture the PDF in memory
+    private static final DecimalFormat CURRENCY_FORMAT = new DecimalFormat("$#.00");
+
+    public static byte[] generateInvoicePDF(InvoiceRequest request) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-        // Create a PdfWriter instance
         PdfWriter writer = new PdfWriter(baos);
-
-        // Create a PdfDocument instance for iText 7
         PdfDocument pdfDoc = new PdfDocument(writer);
+        Document document = new Document(pdfDoc);
 
-        // Create a Document instance (iText 7)
-        com.itextpdf.layout.Document document = new com.itextpdf.layout.Document(pdfDoc);
+        // --- Branding Section ---
+        try {
+            Image logo = new Image(ImageDataFactory.create("/path/to/logo.png"))
+                    .setWidth(100).setHeight(50);
+            document.add(logo);
+        } catch (Exception e) {
+            System.out.println("Logo not found: " + e.getMessage());
+        }
+        document.add(new Paragraph("BaskitBoy")
+                .setFontSize(20).setBold().setTextAlignment(TextAlignment.LEFT));
+        document.add(new Paragraph("253, Spicy hub sector 39")
+                .setFontSize(10).setTextAlignment(TextAlignment.LEFT));
+        document.add(new Paragraph("\n")); // Add some spacing
 
-        // Add invoice title
-        document.add(new Paragraph("Invoice"));
+        // --- Invoice Header Section ---
+        Table headerTable = new Table(UnitValue.createPercentArray(new float[]{2, 2}));
+        headerTable.setWidth(UnitValue.createPercentValue(100));
+        headerTable.addCell(new Cell().add(new Paragraph("Invoice Number: "+request.getInvoiceNumber()).setBold())
+                .setBorder(null));
+        headerTable.addCell(new Cell().add(new Paragraph("Date: 2024-11-23").setTextAlignment(TextAlignment.RIGHT))
+                .setBorder(null));
+        document.add(headerTable);
+        document.add(new Paragraph("\n")); // Add some spacing
 
-        // Add customer details
-        document.add(new Paragraph("Customer: " + invoice.getCustomerName()));
-        document.add(new Paragraph("Address: " + invoice.getCustomerAddress()));
-        document.add(new Paragraph("Invoice Number: " + invoice.getInvoiceNumber()));
+        // --- Customer Details ---
+        document.add(new Paragraph("Customer Details")
+                .setFontSize(14).setBold().setTextAlignment(TextAlignment.LEFT));
+        document.add(new Paragraph("Name: "+request.getCustomerName()));
+        document.add(new Paragraph("Address: "+request.getCustomerAddress()));
+        document.add(new Paragraph("\n"));
 
-        // Add items table
-        Table table = new Table(4); // 4 columns (Item Name, Quantity, Price, Total)
-        table.addCell(new Cell().add(new Paragraph("Item Name").setTextAlignment(TextAlignment.CENTER)));
-        table.addCell(new Cell().add(new Paragraph("Quantity").setTextAlignment(TextAlignment.CENTER)));
-        table.addCell(new Cell().add(new Paragraph("Price").setTextAlignment(TextAlignment.CENTER)));
-        table.addCell(new Cell().add(new Paragraph("Total").setTextAlignment(TextAlignment.CENTER)));
+        // --- Table Section ---
+        Table table = new Table(UnitValue.createPercentArray(new float[]{4, 1, 2, 2}));
+        table.setWidth(UnitValue.createPercentValue(100));
 
-        // Add each item from the invoice
-        for (InvoiceItemRequest item : invoice.getItems()) {
-            table.addCell(item.getItemName());
-            table.addCell(String.valueOf(item.getQuantity()));
-            table.addCell(String.valueOf(item.getPrice()));
-            table.addCell(String.valueOf(item.getPrice() * item.getQuantity()));
+        // Table Header
+        DeviceRgb headerColor = new DeviceRgb(63, 81, 181); // Blue color
+        table.addHeaderCell(new Cell().add(new Paragraph("Item Name").setBold())
+                .setBackgroundColor(headerColor).setFontColor(DeviceRgb.WHITE).setTextAlignment(TextAlignment.CENTER));
+        table.addHeaderCell(new Cell().add(new Paragraph("Quantity").setBold())
+                .setBackgroundColor(headerColor).setFontColor(DeviceRgb.WHITE).setTextAlignment(TextAlignment.CENTER));
+        table.addHeaderCell(new Cell().add(new Paragraph("Price").setBold())
+                .setBackgroundColor(headerColor).setFontColor(DeviceRgb.WHITE).setTextAlignment(TextAlignment.CENTER));
+        table.addHeaderCell(new Cell().add(new Paragraph("Total").setBold())
+                .setBackgroundColor(headerColor).setFontColor(DeviceRgb.WHITE).setTextAlignment(TextAlignment.CENTER));
+
+        // Add Item Rows
+//        for (int i = 0; i < 5; i++) {
+//            String itemName = "Item " + (i + 1);
+//            int quantity = (i + 1) * 2;
+//            double price = 19.99;
+//            double total = quantity * price;
+//
+//            table.addCell(new Paragraph(itemName));
+//            table.addCell(new Paragraph(String.valueOf(quantity)).setTextAlignment(TextAlignment.CENTER));
+//            table.addCell(new Paragraph(CURRENCY_FORMAT.format(price)).setTextAlignment(TextAlignment.RIGHT));
+//            table.addCell(new Paragraph(CURRENCY_FORMAT.format(total)).setTextAlignment(TextAlignment.RIGHT));
+//        }
+
+        double totalAmount = 0;
+        for (InvoiceItemRequest item: request.getItems()) {
+            double total = item.getQuantity() * item.getPrice();
+            table.addCell(new Paragraph(item.getItemName()));
+            table.addCell(new Paragraph(String.valueOf(item.getQuantity())).setTextAlignment(TextAlignment.CENTER));
+            table.addCell(new Paragraph(CURRENCY_FORMAT.format(item.getPrice())).setTextAlignment(TextAlignment.RIGHT));
+            table.addCell(new Paragraph(CURRENCY_FORMAT.format(total)).setTextAlignment(TextAlignment.RIGHT));
+            totalAmount += total;
         }
 
-        // Add the table to the document
         document.add(table);
 
-        // Add total amount
-        document.add(new Paragraph("Total Amount: " + invoice.getTotalAmount()));
+        // --- Total Amount ---
+        document.add(new Paragraph("\n")); // Add spacing
+        Paragraph totalParagraph = new Paragraph("Total: " + CURRENCY_FORMAT.format(totalAmount))
+                .setBold().setFontSize(14).setTextAlignment(TextAlignment.RIGHT);
+        document.add(totalParagraph);
 
-        // Close the document
+        // --- Footer Section ---
+        document.add(new Paragraph("\n")); // Add spacing
+        document.add(new Paragraph("Thank you for your business!")
+                .setFontSize(12).setTextAlignment(TextAlignment.CENTER));
+        document.add(new Paragraph("Contact us: support@baskitboy.com | +123 456 7890")
+                .setFontSize(10).setTextAlignment(TextAlignment.CENTER));
+
+        // Close Document
         document.close();
-
-        // Return the PDF byte array
         return baos.toByteArray();
     }
 }
